@@ -1,0 +1,16 @@
+{
+  "name": "ncri-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "serve.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node --watch serve.js"
+  },
+  "dependencies": {
+    "puppeteer": "^23.11.1"
+  },
+  "devDependencies": {
+    "jsdoc": "^4.0.4"
+  }
+}

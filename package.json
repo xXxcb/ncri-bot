@@ -8,6 +8,7 @@
     "dev": "node --watch serve.js"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "puppeteer": "^23.11.1"
   },
   "devDependencies": {

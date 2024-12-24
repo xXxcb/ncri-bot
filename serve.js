@@ -13,17 +13,31 @@ const adapters = require('./helpers/adapters');
 
 (async () => {
 
-    puppeteer.launch({ headless: false }).then(async browser => {
-        console.log('Running tests..')
+    try {
+        puppeteer.launch({ headless: false, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] }).then(async browser => {
+            console.log('Running tests..')
 
-        const page = await browser.newPage()
-        await page.goto('https://10.18.82.100')
+            const page = await browser.newPage();
 
-        // Check for security page
-        // Check for login page
-        await page.waitForTimeout(2000)
 
-        await browser.close()
-    })
+            const [newTab] = await Promise.all([
+                new Promise(resolve => browser.once('targetcreated', async target => {
+                    if (target.type() === 'page') {
+                        const newPage = await target.page();
+                        resolve(newPage);
+                    }
+                })),
+                // Navigate to the URL, which might trigger a new tab
+                page.goto('https://10.18.82.100', { waitUntil: 'load' }) // Wait for the page to load completely
+            ]);
+
+            // Once the new tab is opened, interact with it
+            await newTab.waitForSelector('body');  // Ensure the new tab has loaded
+
+            await adapters.loginPage(newTab);
+        })
+    } catch (error) {
+        console.log(error)
+    }
 
 })();

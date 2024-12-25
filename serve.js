@@ -53,13 +53,16 @@ const adapters = require('./helpers/adapters');
             let enterURL
 
             for (const page of pages) {
-                console.log('page:', page.url());
                 enterURL = page.url().includes('enter') ? page.url() : '';
                 if (page.url().includes('about')) await page.close()
                 if (page.url().includes('index')) await page.close()
             }
             let wrkPage = await browser.newPage()
-            await wrkPage.goto(enterURL)
+            if (!enterURL) {
+                console.info('Port Auth Enter URL malformed or missing.')
+            } else {
+                await wrkPage.goto(enterURL)
+            }
 
             await wrkPage.waitForSelector('#username', {timeout: 20000})
 
@@ -69,6 +72,20 @@ const adapters = require('./helpers/adapters');
             await wrkPage.click('#password')
             await wrkPage.type('#password', process.env.PASS_KEY)
             await wrkPage.click('input[type="submit"]')
+
+
+            // Move to the meat!
+            await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
+            await wrkPage.waitForSelector('#REPORTS')
+            await wrkPage.click('#REPORTS')
+            // await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
+            await page.click('select[name="report_seq"]')
+            await page.select('select[name="report_seq"]', '13')
+
+            // Click Generate button
+            let generate = await page.$('//*[@id="generateButton"]/table/tbody/tr[1]/td/a')
+            await generate[0].click()
+
 
         })
     } catch (error) {

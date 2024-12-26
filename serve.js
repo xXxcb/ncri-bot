@@ -79,12 +79,18 @@ const adapters = require('./helpers/adapters');
             await wrkPage.waitForSelector('#REPORTS')
             await wrkPage.click('#REPORTS')
             // await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
-            await page.click('select[name="report_seq"]')
-            await page.select('select[name="report_seq"]', '13')
 
-            // Click Generate button
-            let generate = await page.$('//*[@id="generateButton"]/table/tbody/tr[1]/td/a')
-            await generate[0].click()
+            let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
+
+            const frame = await cframe.contentFrame();
+
+            await frame.click('select[name="report_seq"]')
+            await frame.select('select[name="report_seq"]', '13')
+
+
+            await frame.waitForSelector('#generateButton a[href="/blank.phtml"]');
+            await frame.click('#generateButton a[href="/blank.phtml"]');
+
 
 
         })
@@ -104,9 +110,3 @@ const adapters = require('./helpers/adapters');
     }
 
 })();
-
-function delay(time) {
-    return new Promise(function(resolve) {
-        setTimeout(resolve, time)
-    });
-}

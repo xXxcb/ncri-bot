@@ -73,12 +73,10 @@ const adapters = require('./helpers/adapters');
             await wrkPage.type('#password', process.env.PASS_KEY)
             await wrkPage.click('input[type="submit"]')
 
-
             // Move to the meat!
             await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
             await wrkPage.waitForSelector('#REPORTS')
             await wrkPage.click('#REPORTS')
-            // await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
 
             let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
 
@@ -87,12 +85,22 @@ const adapters = require('./helpers/adapters');
             await frame.click('select[name="report_seq"]')
             await frame.select('select[name="report_seq"]', '13')
 
-
             await frame.waitForSelector('#generateButton a[href="/blank.phtml"]');
-            await frame.click('#generateButton a[href="/blank.phtml"]');
+            // await frame.click('#generateButton a[href="/blank.phtml"]');
 
+            const [popup] = await Promise.all([
+                new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
+                frame.click('#generateButton a[href="/blank.phtml"]'), // Click the button that triggers the popup
+            ]);
 
+            // Wait for the popup to load
+            await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
 
+            // Perform actions on the popup window
+            console.log('Popup window URL:', await popup.url());
+
+        }).catch((err) => {
+            console.error(err);
         })
     } catch (error) {
         console.error('Error occurred:', error.message);

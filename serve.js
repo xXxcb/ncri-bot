@@ -96,8 +96,23 @@ const adapters = require('./helpers/adapters');
             // Wait for the popup to load
             await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
 
-            // Perform actions on the popup window
+            // New Window: Inventory Report Details
             console.log('Popup window URL:', await popup.url());
+
+            await popup.bringToFront()
+
+            // await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+
+            let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
+
+            await invPage.waitForSelector('table a[href="javascript:refresh()"]');
+            await invPage.click('table a[href="javascript:refresh()"]');
+
+            await invPage.waitForSelector('table #extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
+            await invPage.click('table #extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
+
+            await invPage.waitForSelector('table a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
+            await invPage.click('table a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
 
         }).catch((err) => {
             console.error(err);

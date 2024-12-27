@@ -82,6 +82,7 @@ const adapters = require('./helpers/adapters');
 
             const frame = await cframe.contentFrame();
 
+            await frame.waitForSelector('select[name="report_seq"')
             await frame.click('select[name="report_seq"]')
             await frame.select('select[name="report_seq"]', '13')
 
@@ -99,20 +100,25 @@ const adapters = require('./helpers/adapters');
             // New Window: Inventory Report Details
             console.log('Popup window URL:', await popup.url());
 
-            await popup.bringToFront()
+            // await popup.bringToFront()
 
-            // await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+            // await popup.waitForNavigation({ waitUntil: 'loaded' })
 
             let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
+            let invFrame = await invPage.contentFrame()
 
-            await invPage.waitForSelector('table a[href="javascript:refresh()"]');
-            await invPage.click('table a[href="javascript:refresh()"]');
 
-            await invPage.waitForSelector('table #extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
-            await invPage.click('table #extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
 
-            await invPage.waitForSelector('table a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
-            await invPage.click('table a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
+            await invFrame.waitForSelector('a[href="javascript:refresh()"]');
+            await invFrame.click('a[href="javascript:refresh()"]');
+
+            await invFrame.waitForSelector('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
+            await invFrame.click('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
+
+            // Stopped here @TODO Continue
+
+            await invFrame.waitForSelector('a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
+            await invFrame.click('a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
 
         }).catch((err) => {
             console.error(err);

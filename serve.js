@@ -1,5 +1,8 @@
 require('dotenv').config({ path: `${__dirname}/config/.env`});
 const puppeteer = require('puppeteer');
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
 const adapters = require('./helpers/adapters');
 
 /**
@@ -36,7 +39,7 @@ const adapters = require('./helpers/adapters');
             // Once the new tab is opened, interact with it
             await newTab.waitForSelector('body');  // Ensure the new tab has loaded
 
-            console.log('first login page')
+            console.info('Initial Login page')
 
             await newTab.click('#username')
             await newTab.type('#username', process.env.USER_NAME)
@@ -74,6 +77,7 @@ const adapters = require('./helpers/adapters');
             await wrkPage.click('input[type="submit"]')
 
             // Move to the meat!
+            console.info('Navigating to Report View')
             await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
             await wrkPage.waitForSelector('#REPORTS')
             await wrkPage.click('#REPORTS')
@@ -104,24 +108,84 @@ const adapters = require('./helpers/adapters');
 
             // await popup.waitForNavigation({ waitUntil: 'loaded' })
 
+            console.info('Load Transfer Setup Frame')
             let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
             let invFrame = await invPage.contentFrame()
 
+            // await invFrame.waitForNavigation({ waitUntil: 'networkidle0' })
 
-
-            await invFrame.waitForSelector('a[href="javascript:refresh()"]');
-            await invFrame.click('a[href="javascript:refresh()"]');
-
+            // Show Extra Options
             await invFrame.waitForSelector('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
             await invFrame.click('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
-
             // Stopped here @TODO Continue
 
-            await invFrame.waitForSelector('a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
-            await invFrame.click('a[href="changeValue(\'exportyn\',\'1\');blankValue(\'notesyn\');blankValue(\'lettersyn\');"]')
+            // Get User List iFrame
+            console.info('Load User List iFrame')
+            let invInnerPage = await invFrame.waitForSelector('iframe[name="user_list"]')
+            let userFrame = await invInnerPage.contentFrame()
+
+
+            // Export Checkbox
+            await userFrame.waitForSelector('input[name="exportyn"]')
+            await userFrame.click('input[name="exportyn"]')
+
+            // Details Button
+            await invFrame.waitForSelector('a[href="javascript:refresh()"]');
+
+            const [exportPopup] = await Promise.all([
+                new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
+                await invFrame.click('a[href="javascript:refresh()"]'), // Click the button that triggers the popup
+            ]);
+
+            // Wait for the popup to load
+            await exportPopup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+
+            // New Window: Export Question
+            console.log('Popup window URL:', await popup.url());
+
+            await exportPopup.waitForSelector('select[name="layout_seq"]')
+            await exportPopup.click('select[name="layout_seq"]')
+            await exportPopup.select('select[name="layout_seq"]', '844')
+
+            // Click Export Button
+            await exportPopup.waitForSelector('input[type="button"][value="Export"]');
+            await exportPopup.click('input[type="button"][value="Export"]')
+
+
+            console.info('Load Input Frame')
+            let invInputPage = await popup.waitForSelector('frame[name="input"]')
+            let invInputFrame = await invInputPage.contentFrame()
+
+
+            // Configure Downloads
+            const now = new Date();
+            const folderName = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
+
+            const downloadPath = path.join(os.homedir(), 'Desktop', 'DRS_DL', `${folderName}`);
+            console.log(`Download path set to: ${downloadPath}`);
+
+            if (!fs.existsSync(downloadPath)) {
+                fs.mkdirSync(downloadPath, { recursive: true });
+            }
+
+            // Set download behavior
+            const client = await invInputFrame.target().createCDPSession();
+            await client.send('Page.setDownloadBehavior', {
+                behavior: 'allow',
+                downloadPath: downloadPath
+            });
+
+            // Download File
+            await invInputFrame.waitForSelector('a[href="/download_file.phtml?export_seq=2941"]')
+            await invInputFrame.click('a[href="/download_file.phtml?export_seq=2941"]')
+
 
         }).catch((err) => {
             console.error(err);
+
+
+            // err.message
+            // net::ERR_EMPTY_RESPONSE at https://10.18.82.100
         })
     } catch (error) {
         console.error('Error occurred:', error.message);

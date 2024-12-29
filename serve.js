@@ -112,12 +112,12 @@ const adapters = require('./helpers/adapters');
             let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
             let invFrame = await invPage.contentFrame()
 
+
             // await invFrame.waitForNavigation({ waitUntil: 'networkidle0' })
 
             // Show Extra Options
             await invFrame.waitForSelector('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
             await invFrame.click('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
-            // Stopped here @TODO Continue
 
             // Get User List iFrame
             console.info('Load User List iFrame')
@@ -141,7 +141,7 @@ const adapters = require('./helpers/adapters');
             await exportPopup.waitForNavigation({ waitUntil: 'domcontentloaded' })
 
             // New Window: Export Question
-            console.log('Popup window URL:', await popup.url());
+            console.log('Export Popup window URL:', await exportPopup.url());
 
             await exportPopup.waitForSelector('select[name="layout_seq"]')
             await exportPopup.click('select[name="layout_seq"]')
@@ -150,11 +150,6 @@ const adapters = require('./helpers/adapters');
             // Click Export Button
             await exportPopup.waitForSelector('input[type="button"][value="Export"]');
             await exportPopup.click('input[type="button"][value="Export"]')
-
-
-            console.info('Load Input Frame')
-            let invInputPage = await popup.waitForSelector('frame[name="input"]')
-            let invInputFrame = await invInputPage.contentFrame()
 
 
             // Configure Downloads
@@ -169,17 +164,21 @@ const adapters = require('./helpers/adapters');
             }
 
             // Set download behavior
-            const client = await invInputFrame.target().createCDPSession();
-            await client.send('Page.setDownloadBehavior', {
+            const downloadClient = await popup.createCDPSession();
+            await downloadClient.send('Page.setDownloadBehavior', {
                 behavior: 'allow',
                 downloadPath: downloadPath
             });
 
+            console.info('Load Input Frame')
+            let invInputPage = await popup.waitForSelector('frame[name="input"]')
+            let invInputFrame = await invInputPage.contentFrame()
+
+            // Stopped here: @TODO Need to test login
+
             // Download File
-            await invInputFrame.waitForSelector('a[href="/download_file.phtml?export_seq=2941"]')
-            await invInputFrame.click('a[href="/download_file.phtml?export_seq=2941"]')
-
-
+            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]')
+            await invInputFrame.click('a[href*="/download_file.phtml?export_seq="]')
         }).catch((err) => {
             console.error(err);
 

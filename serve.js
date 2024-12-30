@@ -180,7 +180,24 @@ const adapters = require('./helpers/adapters');
             console.error(err);
 
             if (err.message.includes('ERR_EMPTY_RESPONSE')) {
-                // Restart application
+                // Restart node application
+                const { spawn } = require('child_process');
+
+                if (require.main === module) {
+                    console.log('Application is running...');
+
+                    // Simulate an error to trigger restart
+                    setTimeout(() => {
+                        console.log('Simulating an error...');
+                        restartApp();
+                    }, 2000);
+                }
+
+                function restartApp() {
+                    console.log('Restarting application...');
+                    spawn(process.argv[0], process.argv.slice(1), { stdio: 'inherit' });
+                    process.exit(0); // Exit the current process
+                }
             }
 
 

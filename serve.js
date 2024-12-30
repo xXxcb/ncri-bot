@@ -49,7 +49,7 @@ const adapters = require('./helpers/adapters');
             await newTab.click('input[type="submit"]')
 
             await newTab.waitForNavigation({ waitUntil: 'domcontentloaded' });
-            // await newTab.waitForSelector('body'); // Wait until the body is available
+
             await newTab.waitForNetworkIdle()
 
             const pages = await browser.pages();
@@ -80,6 +80,8 @@ const adapters = require('./helpers/adapters');
             console.info('Navigating to Report View')
             await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
             await wrkPage.waitForSelector('#REPORTS')
+
+            await adapters.logout(wrkPage)
             await wrkPage.click('#REPORTS')
 
             let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
@@ -91,7 +93,6 @@ const adapters = require('./helpers/adapters');
             await frame.select('select[name="report_seq"]', '13')
 
             await frame.waitForSelector('#generateButton a[href="/blank.phtml"]');
-            // await frame.click('#generateButton a[href="/blank.phtml"]');
 
             const [popup] = await Promise.all([
                 new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
@@ -124,7 +125,6 @@ const adapters = require('./helpers/adapters');
             let invInnerPage = await invFrame.waitForSelector('iframe[name="user_list"]')
             let userFrame = await invInnerPage.contentFrame()
 
-
             // Export Checkbox
             await userFrame.waitForSelector('input[name="exportyn"]')
             await userFrame.click('input[name="exportyn"]')
@@ -151,7 +151,6 @@ const adapters = require('./helpers/adapters');
             await exportPopup.waitForSelector('input[type="button"][value="Export"]');
             await exportPopup.click('input[type="button"][value="Export"]')
 
-
             // Configure Downloads
             const now = new Date();
             const folderName = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
@@ -174,13 +173,15 @@ const adapters = require('./helpers/adapters');
             let invInputPage = await popup.waitForSelector('frame[name="input"]')
             let invInputFrame = await invInputPage.contentFrame()
 
-            // Stopped here: @TODO Need to test login
-
             // Download File
             await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]')
             await invInputFrame.click('a[href*="/download_file.phtml?export_seq="]')
         }).catch((err) => {
             console.error(err);
+
+            if (err.message.includes('ERR_EMPTY_RESPONSE')) {
+                // Restart application
+            }
 
 
             // err.message

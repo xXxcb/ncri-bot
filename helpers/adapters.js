@@ -1,37 +1,111 @@
 const adapters = {}
 
-adapters.loginPage = async (page) => {
+adapters.loginPage = async (page, browser) => {
     return new Promise(async (resolve) => {
+        const [newTab] = await Promise.all([
+            new Promise(resolve => browser.once('targetcreated', async target => {
+                if (target.type() === 'page') {
+                    const newPage = await target.page(); // Get the new tab or window
+                    // await newPage.waitForNavigation({ waitUntil: 'load' })
+                    await newPage.waitForNetworkIdle()
+                    console.log('New window/tab opened:', newPage.url());
+                    resolve(newPage);
+                }
+            })),
+            // Navigate to the URL, which might trigger a new tab
+            page.goto('https://10.18.82.100', { waitUntil: 'load' }) // Wait for the page to load completely
 
-        const newPagePromise = new Promise(resolve => page.once('targetcreated', async target => {
-            const newPage = await target.page();
-            if (newPage) {
-                await newPage.bringToFront(); // Bring the new window to the front
-                resolve(newPage);
-            }
-        }));
-    
+        ]);
 
-        await page.click('#username')
-        await page.type('#username', process.env.USER_NAME)
-        await page.click('#password')
-        await page.type('#password', process.env.PASS_KEY)
-        await page.click('input[type="submit"]')
-        console.log('login page')
+        // Once the new tab is opened, interact with it
+        await newTab.waitForSelector('body');  // Ensure the new tab has loaded
 
-        
+        console.info('Initial Login page')
 
+        await newTab.click('#username')
+        await newTab.type('#username', process.env.USER_NAME)
+        await newTab.click('#password')
+        await newTab.type('#password', process.env.PASS_KEY)
 
+        await newTab.click('input[type="submit"]')
 
-        // Wait for the new page (popup window) to be resolved
-    const newPage = await newPagePromise;
-    console.log('New pop-up window detected');
+        await newTab.waitForNavigation({ waitUntil: 'domcontentloaded' });
 
-    // Interact with the new pop-up window
-    console.log('New page URL:', await newPage.url());
-    await newPage.waitForSelector('body'); // Replace with the appropriate selector
-    console.log('Element found in the new window');
+        await newTab.waitForNetworkIdle()
 
+        const pages = await browser.pages();
+        let enterURL
+
+        for (const page of pages) {
+            enterURL = page.url().includes('enter') ? page.url() : '';
+            if (page.url().includes('about')) await page.close()
+            if (page.url().includes('index')) await page.close()
+        }
+        let wrkPage = await browser.newPage()
+        if (!enterURL) {
+            console.info('Port Auth Enter URL malformed or missing.')
+        } else {
+            await wrkPage.goto(enterURL)
+        }
+
+        await wrkPage.waitForSelector('#username', {timeout: 20000})
+
+        console.info('Login Page loaded again. Retrying login...');
+        await wrkPage.click('#username')
+        await wrkPage.type('#username', process.env.USER_NAME)
+        await wrkPage.click('#password')
+        await wrkPage.type('#password', process.env.PASS_KEY)
+        await wrkPage.click('input[type="submit"]')
+
+        resolve(wrkPage)
+    }).catch((err) => {
+        console.error('Login Error: ', err)
+    })
+}
+
+adapters.mainPage = async (wrkPage, browser) => {
+    return new Promise(async (resolve) => {
+        console.info('Navigating to Report View')
+        await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
+        await wrkPage.waitForSelector('#REPORTS')
+
+        await adapters.logout(wrkPage)
+        await wrkPage.click('#REPORTS')
+
+        let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
+
+        const frame = await cframe.contentFrame();
+
+        await frame.waitForSelector('select[name="report_seq"')
+        await frame.click('select[name="report_seq"]')
+        await frame.select('select[name="report_seq"]', '13')
+
+        await frame.waitForSelector('#generateButton a[href="/blank.phtml"]');
+
+        const [popup] = await Promise.all([
+            new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
+            frame.click('#generateButton a[href="/blank.phtml"]'), // Click the button that triggers the popup
+        ]);
+
+        // Wait for the popup to load
+        await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+
+        // New Window: Inventory Report Details
+        console.log('Popup window URL:', await popup.url());
+
+        // await popup.bringToFront()
+
+        // await popup.waitForNavigation({ waitUntil: 'loaded' })
+
+        resolve(popup)
+    })
+}
+
+adapters.logout = async (page) => {
+    return new Promise(async () => {
+        await page.waitForSelector('#tclock a[href="logout.phtml]"')
+        await page.click('#tclock a[href="logout.phtml]"')
+        process.exit(0)
     })
 }
 

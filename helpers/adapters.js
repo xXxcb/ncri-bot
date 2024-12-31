@@ -103,8 +103,9 @@ adapters.mainPage = async (wrkPage, browser) => {
 
 adapters.logout = async (page) => {
     return new Promise(async () => {
-        await page.waitForSelector('#tclock a[href="logout.phtml]"')
-        await page.click('#tclock a[href="logout.phtml]"')
+        console.info('Logging Out...')
+        await page.goto('https://10.18.82.100/logout.phtml')
+        console.info('Logged Out...')
         process.exit(0)
     })
 }

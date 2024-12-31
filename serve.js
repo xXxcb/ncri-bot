@@ -3,7 +3,6 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const adapters = require('./helpers/adapters');
 
 /**
  * Endpoint to create a new admin account
@@ -80,9 +79,12 @@ const adapters = require('./helpers/adapters');
             console.info('Navigating to Report View')
             await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
             await wrkPage.waitForSelector('#REPORTS')
-
-            await adapters.logout(wrkPage)
             await wrkPage.click('#REPORTS')
+            console.info('Main Page URL: ', wrkPage.url())
+
+
+
+            // await adapters.logout(wrkPage)
 
             let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
 
@@ -142,6 +144,7 @@ const adapters = require('./helpers/adapters');
 
             // New Window: Export Question
             console.log('Export Popup window URL:', await exportPopup.url());
+            await exportPopup.reload()
 
             await exportPopup.waitForSelector('select[name="layout_seq"]')
             await exportPopup.click('select[name="layout_seq"]')
@@ -179,7 +182,9 @@ const adapters = require('./helpers/adapters');
         }).catch((err) => {
             console.error(err);
 
-            if (err.message.includes('ERR_EMPTY_RESPONSE')) {
+
+
+            if (err.message) {
                 // Restart node application
                 const { spawn } = require('child_process');
 
@@ -188,7 +193,6 @@ const adapters = require('./helpers/adapters');
 
                     // Simulate an error to trigger restart
                     setTimeout(() => {
-                        console.log('Simulating an error...');
                         restartApp();
                     }, 2000);
                 }
@@ -196,8 +200,10 @@ const adapters = require('./helpers/adapters');
                 function restartApp() {
                     console.log('Restarting application...');
                     spawn(process.argv[0], process.argv.slice(1), { stdio: 'inherit' });
-                    process.exit(0); // Exit the current process
+                    process.exit(1); // Exit the current process
                 }
+
+
             }
 
 

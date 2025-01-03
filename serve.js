@@ -1,8 +1,13 @@
 require('dotenv').config({ path: `${__dirname}/config/.env`});
 const puppeteer = require('puppeteer');
 const path = require('path');
+const adapters = require('./helpers/adapters');
 const os = require('os');
 const fs = require('fs');
+let globalPage
+let globalBrowser
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Endpoint to create a new admin account
@@ -13,67 +18,13 @@ const fs = require('fs');
  * @returns {Object} - Returns a response object {created: true}
  */
 
-(async () => {
-
+const startApp = () => {
     try {
         puppeteer.launch({ headless: false, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
-
+            globalBrowser = browser
             const page = await browser.newPage();
-
-            const [newTab] = await Promise.all([
-                new Promise(resolve => browser.once('targetcreated', async target => {
-                    if (target.type() === 'page') {
-                        const newPage = await target.page(); // Get the new tab or window
-                        // await newPage.waitForNavigation({ waitUntil: 'load' })
-                        await newPage.waitForNetworkIdle()
-                        console.log('New window/tab opened:', newPage.url());
-                        resolve(newPage);
-                    }
-                })),
-                // Navigate to the URL, which might trigger a new tab
-                page.goto('https://10.18.82.100', { waitUntil: 'load' }) // Wait for the page to load completely
-
-            ]);
-
-            // Once the new tab is opened, interact with it
-            await newTab.waitForSelector('body');  // Ensure the new tab has loaded
-
-            console.info('Initial Login page')
-
-            await newTab.click('#username')
-            await newTab.type('#username', process.env.USER_NAME)
-            await newTab.click('#password')
-            await newTab.type('#password', process.env.PASS_KEY)
-
-            await newTab.click('input[type="submit"]')
-
-            await newTab.waitForNavigation({ waitUntil: 'domcontentloaded' });
-
-            await newTab.waitForNetworkIdle()
-
-            const pages = await browser.pages();
-            let enterURL
-
-            for (const page of pages) {
-                enterURL = page.url().includes('enter') ? page.url() : '';
-                if (page.url().includes('about')) await page.close()
-                if (page.url().includes('index')) await page.close()
-            }
-            let wrkPage = await browser.newPage()
-            if (!enterURL) {
-                console.info('Port Auth Enter URL malformed or missing.')
-            } else {
-                await wrkPage.goto(enterURL)
-            }
-
-            await wrkPage.waitForSelector('#username', {timeout: 20000})
-
-            console.info('Login Page loaded again. Retrying login...');
-            await wrkPage.click('#username')
-            await wrkPage.type('#username', process.env.USER_NAME)
-            await wrkPage.click('#password')
-            await wrkPage.type('#password', process.env.PASS_KEY)
-            await wrkPage.click('input[type="submit"]')
+            let wrkPage = await adapters.loginPage(page, browser);
+            globalPage = wrkPage
 
             // Move to the meat!
             console.info('Navigating to Report View')
@@ -82,9 +33,6 @@ const fs = require('fs');
             await wrkPage.click('#REPORTS')
             console.info('Main Page URL: ', wrkPage.url())
 
-
-
-            // await adapters.logout(wrkPage)
 
             let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
 
@@ -105,18 +53,16 @@ const fs = require('fs');
             await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
 
             // New Window: Inventory Report Details
-            console.log('Popup window URL:', await popup.url());
-
-            // await popup.bringToFront()
-
-            // await popup.waitForNavigation({ waitUntil: 'loaded' })
+            const popupUrl = await popup.url();
+            console.log('Popup window URL:', popupUrl);
+            if (popupUrl) {
+                console.info('Reloading Inventory Report Details window.')
+                await popup.reload({ waitUntil: 'domcontentloaded' });
+            }
 
             console.info('Load Transfer Setup Frame')
             let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
             let invFrame = await invPage.contentFrame()
-
-
-            // await invFrame.waitForNavigation({ waitUntil: 'networkidle0' })
 
             // Show Extra Options
             await invFrame.waitForSelector('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
@@ -135,16 +81,36 @@ const fs = require('fs');
             await invFrame.waitForSelector('a[href="javascript:refresh()"]');
 
             const [exportPopup] = await Promise.all([
-                new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
-                await invFrame.click('a[href="javascript:refresh()"]'), // Click the button that triggers the popup
+                new Promise((resolve, reject) => {
+                    browser.once('targetcreated', async target => {
+                        try {
+                            const page = await target.page();
+                            if (page) {
+                                await page.reload()
+                                resolve(page);
+                            }
+                            else reject(new Error('Popup page not found.'));
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
+                }),
+                invFrame.click('a[href="javascript:refresh()"]')
+
+
+                // new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
+                // await invFrame.click('a[href="javascript:refresh()"]'), // Click the button that triggers the popup
             ]);
 
             // Wait for the popup to load
-            await exportPopup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+            // await exportPopup.waitForNavigation({ waitUntil: 'load' })
 
             // New Window: Export Question
             console.log('Export Popup window URL:', await exportPopup.url());
-            await exportPopup.reload()
+            if (await exportPopup.url()) {
+                console.info('Reloading Export popup window.')
+                await exportPopup.reload()
+            }
 
             await exportPopup.waitForSelector('select[name="layout_seq"]')
             await exportPopup.click('select[name="layout_seq"]')
@@ -177,38 +143,42 @@ const fs = require('fs');
             let invInputFrame = await invInputPage.contentFrame()
 
             // Download File
-            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]')
+            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { timeout: 40000 })
             await invInputFrame.click('a[href*="/download_file.phtml?export_seq="]')
-        }).catch((err) => {
-            console.error(err);
 
+            const waitForFile = (downloadPath, timeout) => {
+                return new Promise((resolve, reject) => {
+                    const start = Date.now();
+                    const interval = setInterval(() => {
+                        const files = fs.readdirSync(downloadPath);
+                        if (files.length > 0) {
+                            clearInterval(interval);
+                            resolve(files[0]); // Return the downloaded file name
+                        }
+                        if (Date.now() - start > timeout) {
+                            clearInterval(interval);
+                            reject(new Error('File download timed out'));
+                        }
+                    }, 100); // Check every 100ms
+                });
+            };
 
+            const downloadedFile = await waitForFile(downloadPath, 40000); // Wait up to 40 seconds
+            console.log(`File downloaded: ${downloadedFile}`);
 
-            if (err.message) {
-                // Restart node application
-                const { spawn } = require('child_process');
-
-                if (require.main === module) {
-                    console.log('Application is running...');
-
-                    // Simulate an error to trigger restart
-                    setTimeout(() => {
-                        restartApp();
-                    }, 2000);
-                }
-
-                function restartApp() {
-                    console.log('Restarting application...');
-                    spawn(process.argv[0], process.argv.slice(1), { stdio: 'inherit' });
-                    process.exit(1); // Exit the current process
-                }
-
-
+            if (downloadedFile) {
+                console.log('File Downloaded successfully.')
+                await adapters.hardLogout(wrkPage)
+                await browser.close()
+                process.exit(0)
             }
-
-
-            // err.message
-            // net::ERR_EMPTY_RESPONSE at https://10.18.82.100
+        }).catch(async (err) => {
+            console.error(err);
+            await adapters.softLogout(globalPage)
+            // await globalBrowser.close()
+            console.log('Restarting app after error.')
+            await delay(3000)
+            startApp()
         })
     } catch (error) {
         console.error('Error occurred:', error.message);
@@ -224,5 +194,6 @@ const fs = require('fs');
         //     console.log('Retry successful.');
         // }
     }
+}
 
-})();
+startApp();

@@ -1,7 +1,7 @@
 const adapters = {}
 
 adapters.loginPage = async (page, browser) => {
-    return new Promise(async (resolve) => {
+    return new Promise(async (resolve, reject) => {
         const [newTab] = await Promise.all([
             new Promise(resolve => browser.once('targetcreated', async target => {
                 if (target.type() === 'page') {
@@ -101,12 +101,20 @@ adapters.mainPage = async (wrkPage, browser) => {
     })
 }
 
-adapters.logout = async (page) => {
+adapters.hardLogout = async (page) => {
     return new Promise(async () => {
         console.info('Logging Out...')
         await page.goto('https://10.18.82.100/logout.phtml')
         console.info('Logged Out...')
         process.exit(0)
+    })
+}
+
+adapters.softLogout = async (page) => {
+    return new Promise(async () => {
+        console.info('Logging Out...')
+        await page.goto('https://10.18.82.100/logout.phtml')
+        console.info('Logged Out...')
     })
 }
 

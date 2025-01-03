@@ -1,5 +1,5 @@
 require('dotenv').config({ path: `${__dirname}/config/.env`});
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const path = require('path');
 const adapters = require('./helpers/adapters');
 const os = require('os');
@@ -20,7 +20,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const startApp = () => {
     try {
-        puppeteer.launch({ headless: false, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
+        puppeteer.launch({ headless: true, executablePath: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
             let wrkPage = await adapters.loginPage(page, browser);

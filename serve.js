@@ -20,7 +20,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const startApp = () => {
     try {
-        puppeteer.launch({ headless: true, executablePath: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
+        puppeteer.launch({ headless: false, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
             let wrkPage = await adapters.loginPage(page, browser);

@@ -1,6 +1,7 @@
 require('dotenv').config({ path: `${__dirname}/config/.env`});
 const puppeteer = require('puppeteer-core');
 const path = require('path');
+const logger = require('./helpers/log')
 const adapters = require('./helpers/adapters');
 const os = require('os');
 const fs = require('fs');
@@ -20,6 +21,8 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const startApp = () => {
     try {
+        const closeLogs = logger()
+
         puppeteer.launch({ headless: false, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
@@ -27,7 +30,7 @@ const startApp = () => {
             globalPage = wrkPage
 
             // Move to the meat!
-            console.info('Navigating to Report View')
+            console.log('Navigating to Report View')
             await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
             await wrkPage.waitForSelector('#REPORTS')
             await wrkPage.click('#REPORTS')
@@ -56,11 +59,11 @@ const startApp = () => {
             const popupUrl = await popup.url();
             console.log('Popup window URL:', popupUrl);
             if (popupUrl) {
-                console.info('Reloading Inventory Report Details window.')
+                console.log('Reloading Inventory Report Details window.')
                 await popup.reload({ waitUntil: 'domcontentloaded' });
             }
 
-            console.info('Load Transfer Setup Frame')
+            console.log('Load Transfer Setup Frame')
             let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
             let invFrame = await invPage.contentFrame()
 
@@ -69,7 +72,7 @@ const startApp = () => {
             await invFrame.click('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
 
             // Get User List iFrame
-            console.info('Load User List iFrame')
+            console.log('Load User List iFrame')
             let invInnerPage = await invFrame.waitForSelector('iframe[name="user_list"]')
             let userFrame = await invInnerPage.contentFrame()
 
@@ -106,10 +109,11 @@ const startApp = () => {
             // await exportPopup.waitForNavigation({ waitUntil: 'load' })
 
             // New Window: Export Question
-            console.log('Export Popup window URL:', await exportPopup.url());
+            console.info('Export Popup window URL:', await exportPopup.url());
             if (await exportPopup.url()) {
-                console.info('Reloading Export popup window.')
+                console.log('Reloading Export popup window.')
                 await exportPopup.reload()
+                console.log('Export popup window reloaded')
             }
 
             await exportPopup.waitForSelector('select[name="layout_seq"]')
@@ -125,7 +129,7 @@ const startApp = () => {
             const folderName = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
 
             const downloadPath = path.join(os.homedir(), 'Desktop', 'DRS_DL', `${folderName}`);
-            console.log(`Download path set to: ${downloadPath}`);
+            console.info(`Download path set to: ${downloadPath}`);
 
             if (!fs.existsSync(downloadPath)) {
                 fs.mkdirSync(downloadPath, { recursive: true });
@@ -138,7 +142,7 @@ const startApp = () => {
                 downloadPath: downloadPath
             });
 
-            console.info('Load Input Frame')
+            console.log('Load Input Frame')
             let invInputPage = await popup.waitForSelector('frame[name="input"]')
             let invInputFrame = await invInputPage.contentFrame()
 
@@ -170,6 +174,7 @@ const startApp = () => {
                 console.log('File Downloaded successfully.')
                 await adapters.hardLogout(wrkPage)
                 await browser.close()
+                closeLogs()
                 process.exit(0)
             }
         }).catch(async (err) => {

@@ -20,7 +20,7 @@ adapters.loginPage = async (page, browser) => {
         // Once the new tab is opened, interact with it
         await newTab.waitForSelector('body');  // Ensure the new tab has loaded
 
-        console.info('Initial Login page')
+        console.log('Initial Login page')
 
         await newTab.click('#username')
         await newTab.type('#username', process.env.USER_NAME)
@@ -43,14 +43,14 @@ adapters.loginPage = async (page, browser) => {
         }
         let wrkPage = await browser.newPage()
         if (!enterURL) {
-            console.info('Port Auth Enter URL malformed or missing.')
+            console.log('Port Auth Enter URL malformed or missing.')
         } else {
             await wrkPage.goto(enterURL)
         }
 
         await wrkPage.waitForSelector('#username', {timeout: 20000})
 
-        console.info('Login Page loaded again. Retrying login...');
+        console.log('Login Page loaded again. Retrying login...');
         await wrkPage.click('#username')
         await wrkPage.type('#username', process.env.USER_NAME)
         await wrkPage.click('#password')
@@ -65,7 +65,7 @@ adapters.loginPage = async (page, browser) => {
 
 adapters.mainPage = async (wrkPage, browser) => {
     return new Promise(async (resolve) => {
-        console.info('Navigating to Report View')
+        console.log('Navigating to Report View')
         await wrkPage.waitForNavigation({ waitUntil: 'domcontentloaded' });
         await wrkPage.waitForSelector('#REPORTS')
 
@@ -103,18 +103,18 @@ adapters.mainPage = async (wrkPage, browser) => {
 
 adapters.hardLogout = async (page) => {
     return new Promise(async () => {
-        console.info('Logging Out...')
+        console.log('Logging Out...')
         await page.goto('https://10.18.82.100/logout.phtml')
-        console.info('Logged Out...')
+        console.log('Logged Out...')
         process.exit(0)
     })
 }
 
 adapters.softLogout = async (page) => {
     return new Promise(async () => {
-        console.info('Logging Out...')
+        console.log('Logging Out...')
         await page.goto('https://10.18.82.100/logout.phtml')
-        console.info('Logged Out...')
+        console.log('Logged Out...')
     })
 }
 

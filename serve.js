@@ -8,16 +8,13 @@ const fs = require('fs');
 let globalPage
 let globalBrowser
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
 /**
- * Endpoint to create a new admin account
- * @method POST /create
- * @param {String} password
- * @param {String} email
- * @param {String} name
- * @returns {Object} - Returns a response object {created: true}
+ * Helper function to create a delay based on inputted milliseconds.
+ * @method delay
+ * @param {Number} ms
+ * @returns {Object} - Returns a timeout promise
  */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const startApp = () => {
     try {
@@ -213,6 +210,13 @@ const startApp = () => {
     }
 }
 
+/**
+ * Function to wait for page navigation and refresh page if page not fully loaded.
+ * @method waitForNavigationWithRefresh
+ * @param {Object} popup
+ * @param {Object} options
+ * @returns {Object} - Returns a page instance.
+ */
 const waitForNavigationWithRefresh = async (popup, options = {}) => {
     const maxRetries = 3;
     let retryCount = 0;
@@ -243,4 +247,8 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
 };
 
 
+/**
+ * Function to start main application.
+ * @method startApp
+ */
 startApp();

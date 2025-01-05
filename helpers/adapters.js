@@ -1,7 +1,8 @@
 const adapters = {}
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 adapters.loginPage = async (page, browser) => {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
         const [newTab] = await Promise.all([
             new Promise(resolve => browser.once('targetcreated', async target => {
                 if (target.type() === 'page') {
@@ -49,9 +50,29 @@ adapters.loginPage = async (page, browser) => {
             await wrkPage.goto(enterURL)
         }
 
+        // Detect temporary lockout
+        for (const page of pages) {
+            if (page.url().includes('enter') ) {
+                let lockoutID = await page.$('#temporary_crap')
+                const boldTexts = await page.evaluate(() => {
+                    const boldElements = Array.from(document.querySelectorAll('b'));
+                    return boldElements.map((el) => el.textContent.trim());
+                });
+
+                let alertFound = boldTexts.length > 0 && boldTexts.some((text) => text.includes('not allowed to login'))
+
+                if (alertFound && lockoutID) {
+                    console.log('Temporary lockout detected.')
+                    console.log('Waiting 2 minutes.')
+                    await delay(120000)
+                    await wrkPage.goto(enterURL)
+                }
+            }
+        }
+
         await wrkPage.waitForSelector('#username', {timeout: 20000})
 
-        console.log('Login Page loaded again. Retrying login...');
+        console.log('Login Page loaded again. Logging in again.');
         await wrkPage.click('#username')
         await wrkPage.type('#username', process.env.USER_NAME)
         await wrkPage.click('#password')

@@ -23,12 +23,21 @@ const startApp = () => {
     try {
         const closeLogs = logger()
 
-        console.info('>> Launching Puppeteer <<')
+        console.info('>> Launching NCRI Bot <<')
         puppeteer.launch({ headless: false, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
             let wrkPage = await adapters.loginPage(page, browser);
             globalPage = wrkPage
+
+            // Detect system unavailable alert
+            wrkPage.on('dialog', async (dialog) => {
+                console.log('Detected browser alert')
+                if (dialog.message().includes('unavailable')) {
+                    console.info(dialog.message())
+                    await adapters.hardLogout(wrkPage)
+                }
+            });
 
             // Move to the meat!
             console.log('Navigating to Report View')
@@ -36,7 +45,6 @@ const startApp = () => {
             await wrkPage.waitForSelector('#REPORTS')
             await wrkPage.click('#REPORTS')
             console.info('Main Page URL: ', wrkPage.url())
-
 
             let cframe = await wrkPage.waitForSelector('#CTBDRS_MAIN');
 

@@ -23,6 +23,7 @@ const startApp = () => {
     try {
         const closeLogs = logger()
 
+        console.info('>> Launching Puppeteer <<')
         puppeteer.launch({ headless: false, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
@@ -53,7 +54,9 @@ const startApp = () => {
             ]);
 
             // Wait for the popup to load
-            await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+            // await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
+
+            await waitForNavigationWithRefresh(popup, {waitUntil: 'domcontentloaded'})
 
             // New Window: Inventory Report Details
             const popupUrl = await popup.url();
@@ -84,37 +87,38 @@ const startApp = () => {
             await invFrame.waitForSelector('a[href="javascript:refresh()"]');
 
             const [exportPopup] = await Promise.all([
-                new Promise((resolve, reject) => {
-                    browser.once('targetcreated', async target => {
-                        try {
-                            const page = await target.page();
-                            if (page) {
-                                await page.reload()
-                                resolve(page);
-                            }
-                            else reject(new Error('Popup page not found.'));
-                        } catch (error) {
-                            reject(error);
-                        }
-                    });
-                }),
-                invFrame.click('a[href="javascript:refresh()"]')
+                // new Promise((resolve, reject) => {
+                //     browser.once('targetcreated', async target => {
+                //         try {
+                //             const page = await target.page();
+                //             if (page) {
+                //                 await page.reload()
+                //                 resolve(page);
+                //             }
+                //             else reject(new Error('Popup page not found.'));
+                //         } catch (error) {
+                //             reject(error);
+                //         }
+                //     });
+                // }),
+                // invFrame.click('a[href="javascript:refresh()"]')
 
 
-                // new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
-                // await invFrame.click('a[href="javascript:refresh()"]'), // Click the button that triggers the popup
+                new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
+                await invFrame.click('a[href="javascript:refresh()"]'), // Click the button that triggers the popup
             ]);
 
             // Wait for the popup to load
             // await exportPopup.waitForNavigation({ waitUntil: 'load' })
+            await waitForNavigationWithRefresh(exportPopup, {waitUntil: 'domcontentloaded'})
 
             // New Window: Export Question
             console.info('Export Popup window URL:', await exportPopup.url());
-            if (await exportPopup.url()) {
-                console.log('Reloading Export popup window.')
-                await exportPopup.reload()
-                console.log('Export popup window reloaded')
-            }
+            // if (await exportPopup.url()) {
+            //     console.log('Reloading Export popup window.')
+            //     await exportPopup.reload()
+            //     console.log('Export popup window reloaded')
+            // }
 
             await exportPopup.waitForSelector('select[name="layout_seq"]')
             await exportPopup.click('select[name="layout_seq"]')
@@ -200,5 +204,35 @@ const startApp = () => {
         // }
     }
 }
+
+const waitForNavigationWithRefresh = async (popup, options = {}) => {
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+        try {
+            // Wait for navigation with a timeout
+            console.log(`Attempt ${retryCount + 1}: Waiting for navigation...`);
+            await popup.waitForNavigation({
+                waitUntil: options.waitUntil || 'domcontentloaded',
+                timeout: options.timeout || 10000, // Default timeout: 10 seconds
+            });
+            console.log('Navigation successful.');
+            return; // Exit the loop if navigation succeeds
+        } catch (error) {
+            console.error(`Navigation timeout or error: ${error.message}`);
+            retryCount++;
+            if (retryCount < maxRetries) {
+                console.log(`Refreshing the page (attempt ${retryCount + 1})...`);
+                await popup.reload(); // Refresh the page
+                return;
+            } else {
+                console.error('Maximum retries reached. Navigation failed.');
+                throw error; // Rethrow the error after maximum retries
+            }
+        }
+    }
+};
+
 
 startApp();

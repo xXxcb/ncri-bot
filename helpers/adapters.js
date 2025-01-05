@@ -8,7 +8,7 @@ adapters.loginPage = async (page, browser) => {
                     const newPage = await target.page(); // Get the new tab or window
                     // await newPage.waitForNavigation({ waitUntil: 'load' })
                     await newPage.waitForNetworkIdle()
-                    console.log('New window/tab opened:', newPage.url());
+                    console.info('New window/tab opened:', newPage.url());
                     resolve(newPage);
                 }
             })),
@@ -20,7 +20,7 @@ adapters.loginPage = async (page, browser) => {
         // Once the new tab is opened, interact with it
         await newTab.waitForSelector('body');  // Ensure the new tab has loaded
 
-        console.log('Initial Login page')
+        console.log('Loading Initial Login page')
 
         await newTab.click('#username')
         await newTab.type('#username', process.env.USER_NAME)
@@ -44,6 +44,7 @@ adapters.loginPage = async (page, browser) => {
         let wrkPage = await browser.newPage()
         if (!enterURL) {
             console.log('Port Auth Enter URL malformed or missing.')
+            await adapters.loginPage(page, browser);
         } else {
             await wrkPage.goto(enterURL)
         }

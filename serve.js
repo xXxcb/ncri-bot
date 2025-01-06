@@ -59,8 +59,6 @@ const startApp = () => {
             ]);
 
             // Wait for the popup to load
-            // await popup.waitForNavigation({ waitUntil: 'domcontentloaded' })
-
             await waitForNavigationWithRefresh(popup, {waitUntil: 'domcontentloaded'})
 
             // New Window: Inventory Report Details
@@ -92,39 +90,15 @@ const startApp = () => {
             await invFrame.waitForSelector('a[href="javascript:refresh()"]');
 
             const [exportPopup] = await Promise.all([
-                // new Promise((resolve, reject) => {
-                //     browser.once('targetcreated', async target => {
-                //         try {
-                //             const page = await target.page();
-                //             if (page) {
-                //                 await page.reload()
-                //                 resolve(page);
-                //             }
-                //             else reject(new Error('Popup page not found.'));
-                //         } catch (error) {
-                //             reject(error);
-                //         }
-                //     });
-                // }),
-                // invFrame.click('a[href="javascript:refresh()"]')
-
-
                 new Promise(resolve => browser.once('targetcreated', target => resolve(target.page()))),
                 await invFrame.click('a[href="javascript:refresh()"]'), // Click the button that triggers the popup
             ]);
 
             // Wait for the popup to load
-            // await exportPopup.waitForNavigation({ waitUntil: 'load' })
             await waitForNavigationWithRefresh(exportPopup, {waitUntil: 'domcontentloaded'})
 
             // New Window: Export Question
             console.info('Export Popup window URL:', await exportPopup.url());
-            // if (await exportPopup.url()) {
-            //     console.log('Reloading Export popup window.')
-            //     await exportPopup.reload()
-            //     console.log('Export popup window reloaded')
-            // }
-
             await exportPopup.waitForSelector('select[name="layout_seq"]')
             await exportPopup.click('select[name="layout_seq"]')
             await exportPopup.select('select[name="layout_seq"]', '844')

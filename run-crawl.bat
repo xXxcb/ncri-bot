@@ -6,4 +6,4 @@ cd /d "C:\Users\NCRI_DEV\Desktop\ncri-bot"
 node serve.js
 
 :: Pause to see output (optional)
-pause
+:: pause

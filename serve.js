@@ -73,6 +73,13 @@ const startApp = () => {
             let invPage = await popup.waitForSelector('frame[name="transfer_setup"]')
             let invFrame = await invPage.contentFrame()
 
+            console.log('Load Criteria iFrame')
+            let criteria = await invFrame.waitForSelector('iframe[name="criteria_list"]')
+            let criFrame = await criteria.contentFrame()
+
+            console.log('Clearing search filters')
+            await criFrame.goto('https://10.18.82.204/required_files/IMR/delete_criteria.phtml?seq=ALL&section=full_search&t_seq=0&user_from=ncrielialg')
+
             // Show Extra Options
             await invFrame.waitForSelector('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
             await invFrame.click('#extra_options a[href="extra_options.phtml?search_by=U-%&t_seq=0&section=full_search"]');
@@ -130,7 +137,7 @@ const startApp = () => {
             let invInputFrame = await invInputPage.contentFrame()
 
             // Download File
-            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { timeout: 40000 })
+            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { timeout: 1200000 })
             await invInputFrame.click('a[href*="/download_file.phtml?export_seq="]')
 
             const waitForFile = (downloadPath, timeout) => {

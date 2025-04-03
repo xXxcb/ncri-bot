@@ -137,27 +137,44 @@ const startApp = () => {
             let invInputFrame = await invInputPage.contentFrame()
 
             // Download File
-            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { timeout: 1200000 })
+            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { timeout: 1500000 })
             await invInputFrame.click('a[href*="/download_file.phtml?export_seq="]')
 
-            const waitForFile = (downloadPath, timeout) => {
-                return new Promise((resolve, reject) => {
-                    const start = Date.now();
-                    const interval = setInterval(() => {
-                        const files = fs.readdirSync(downloadPath);
-                        if (files.length > 0) {
-                            clearInterval(interval);
-                            resolve(files[0]); // Return the downloaded file name
-                        }
-                        if (Date.now() - start > timeout) {
-                            clearInterval(interval);
-                            reject(new Error('File download timed out'));
-                        }
-                    }, 100); // Check every 100ms
-                });
+            const waitForFile = async (downloadPath, timeout) => {
+                const start = Date.now();
+                while (Date.now() - start < timeout) {
+                    const files = fs.readdirSync(downloadPath);
+                    const downloadingFile = files.find(file => file.endsWith('.crdownload'));
+
+                    if (!downloadingFile) {
+                        // Get the final file name (without .crdownload)
+                        const downloadedFile = files.find(file => !file.endsWith('.crdownload'));
+                        if (downloadedFile) return downloadedFile;
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before checking again
+                }
+                throw new Error('File download timed out');
             };
 
-            const downloadedFile = await waitForFile(downloadPath, 40000); // Wait up to 40 seconds
+            // const waitForFile = (downloadPath, timeout) => {
+            //     return new Promise((resolve, reject) => {
+            //         const start = Date.now();
+            //         const interval = setInterval(() => {
+            //             const files = fs.readdirSync(downloadPath);
+            //             if (files.length > 0) {
+            //                 clearInterval(interval);
+            //                 resolve(files[0]); // Return the downloaded file name
+            //             }
+            //             if (Date.now() - start > timeout) {
+            //                 clearInterval(interval);
+            //                 reject(new Error('File download timed out'));
+            //             }
+            //         }, 500); // Check every 100ms
+            //     });
+            // };
+
+            const downloadedFile = await waitForFile(downloadPath, 90000); // Wait up to 90 seconds
             console.log(`File downloaded: ${downloadedFile}`);
 
             if (downloadedFile) {

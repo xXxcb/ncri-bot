@@ -21,7 +21,7 @@ const startApp = () => {
         const closeLogs = logger()
 
         console.info('>> Launching NCRI Bot <<')
-        puppeteer.launch({ headless: false, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
+        puppeteer.launch({ headless: false, protocolTimeout: 1500000, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
             let wrkPage = await adapters.loginPage(page, browser);
@@ -137,7 +137,7 @@ const startApp = () => {
             let invInputFrame = await invInputPage.contentFrame()
 
             // Download File
-            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { timeout: 1500000 })
+            await invInputFrame.waitForSelector('a[href*="/download_file.phtml?export_seq="]', { visible: true,  timeout: 1500000 })
             await invInputFrame.click('a[href*="/download_file.phtml?export_seq="]')
 
             const waitForFile = async (downloadPath, timeout) => {

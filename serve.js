@@ -1,10 +1,12 @@
 require('dotenv').config({ path: `${__dirname}/config/.env`});
 const puppeteer = require('puppeteer-core');
 const path = require('path');
+const cron = require ('node-cron');
 const logger = require('./helpers/log')
 const adapters = require('./helpers/adapters');
 const os = require('os');
 const fs = require('fs');
+let running = false;
 let globalPage
 let globalBrowser
 
@@ -246,7 +248,18 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
 
 
 /**
- * Function to start main application.
+ * Function to start main application. Function is wrapped in a cron task set to execute Monday - Friday @ 7:10am
  * @method startApp
  */
-startApp();
+cron.schedule('10 7 * * 1-5', async () => {
+    if (running) return;
+    running = true;
+
+    try {
+        startApp();
+    } catch (err) {
+        console.error('startApp failed:', err);
+    } finally {
+        running = false;
+    }
+}, { timezone: 'America/Toronto' });

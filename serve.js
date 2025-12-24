@@ -7,6 +7,8 @@ const os = require('os');
 const fs = require('fs');
 let globalPage
 let globalBrowser
+let closeLogs
+let shuttingDown = false
 
 /**
  * Helper function to create a delay based on inputted milliseconds.
@@ -16,12 +18,40 @@ let globalBrowser
  */
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const shutdown = async (reason) => {
+    if (shuttingDown) {
+        return
+    }
+    shuttingDown = true
+    console.info(`Shutting down: ${reason}`)
+    try {
+        if (globalPage) {
+            await adapters.softLogout(globalPage)
+        }
+    } catch (error) {
+        console.error('Error during logout:', error)
+    }
+    try {
+        if (globalBrowser) {
+            await globalBrowser.close()
+        }
+    } catch (error) {
+        console.error('Error closing browser:', error)
+    }
+    if (closeLogs) {
+        closeLogs()
+    }
+    process.exit(0)
+}
+
 const startApp = () => {
     try {
-        const closeLogs = logger()
+        closeLogs = logger()
 
         console.info('>> Launching NCRI Bot <<')
-        puppeteer.launch({ headless: false, protocolTimeout: 1500000, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
+        const executablePath = process.env.CHROME_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        const headless = process.env.HEADLESS !== 'false'
+        puppeteer.launch({ headless, protocolTimeout: 1500000, executablePath, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
             let wrkPage = await adapters.loginPage(page, browser);
@@ -181,7 +211,9 @@ const startApp = () => {
                 console.log('File Downloaded successfully.')
                 await adapters.hardLogout(wrkPage)
                 await browser.close()
-                closeLogs()
+                if (closeLogs) {
+                    closeLogs()
+                }
                 process.exit(0)
             }
         }).catch(async (err) => {
@@ -235,7 +267,7 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
             if (retryCount < maxRetries) {
                 console.log(`Refreshing the page (attempt ${retryCount + 1})...`);
                 await popup.reload(); // Refresh the page
-                return;
+                continue;
             } else {
                 console.error('Maximum retries reached. Navigation failed.');
                 throw error; // Rethrow the error after maximum retries
@@ -250,3 +282,14 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
  * @method startApp
  */
 startApp();
+
+process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error)
+    shutdown('uncaughtException')
+})
+process.on('unhandledRejection', (error) => {
+    console.error('Unhandled rejection:', error)
+    shutdown('unhandledRejection')
+})

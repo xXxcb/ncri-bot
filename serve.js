@@ -250,6 +250,7 @@ const startApp = () => {
 const waitForNavigationWithRefresh = async (popup, options = {}) => {
     const maxRetries = 3;
     let retryCount = 0;
+    const timeout = options.timeout || 90000;
 
     while (retryCount < maxRetries) {
         try {
@@ -257,7 +258,7 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
             console.log(`Attempt ${retryCount + 1}: Waiting for navigation...`);
             await popup.waitForNavigation({
                 waitUntil: options.waitUntil || 'domcontentloaded',
-                timeout: options.timeout || 10000, // Default timeout: 10 seconds
+                timeout,
             });
             console.log('Navigation successful.');
             return; // Exit the loop if navigation succeeds
@@ -266,11 +267,11 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
             retryCount++;
             if (retryCount < maxRetries) {
                 console.log(`Refreshing the page (attempt ${retryCount + 1})...`);
-                await popup.reload(); // Refresh the page
+                await popup.reload({ waitUntil: options.waitUntil || 'domcontentloaded', timeout }); // Refresh the page
                 continue;
             } else {
-                console.error('Maximum retries reached. Navigation failed.');
-                throw error; // Rethrow the error after maximum retries
+                console.error('Maximum retries reached. Continuing without navigation confirmation.');
+                return;
             }
         }
     }

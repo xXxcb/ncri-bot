@@ -18,7 +18,7 @@ let shuttingDown = false
  */
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const shutdown = async (reason) => {
+const shutdown = async (reason, exitCode = 0) => {
     if (shuttingDown) {
         return
     }
@@ -41,7 +41,7 @@ const shutdown = async (reason) => {
     if (closeLogs) {
         closeLogs()
     }
-    process.exit(0)
+    process.exit(exitCode)
 }
 
 const startApp = () => {
@@ -284,13 +284,13 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
  */
 startApp();
 
-process.on('SIGINT', () => shutdown('SIGINT'))
-process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT', 0))
+process.on('SIGTERM', () => shutdown('SIGTERM', 0))
 process.on('uncaughtException', (error) => {
     console.error('Uncaught exception:', error)
-    shutdown('uncaughtException')
+    shutdown('uncaughtException', 1)
 })
 process.on('unhandledRejection', (error) => {
     console.error('Unhandled rejection:', error)
-    shutdown('unhandledRejection')
+    shutdown('unhandledRejection', 1)
 })

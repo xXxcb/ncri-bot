@@ -3,30 +3,34 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 adapters.loginPage = async (page, browser) => {
     return new Promise(async (resolve) => {
-        const [newTab] = await Promise.all([
-            new Promise(resolve => browser.once('targetcreated', async target => {
+        const newTabPromise = new Promise(resolve => {
+            browser.once('targetcreated', async target => {
                 if (target.type() === 'page') {
                     const newPage = await target.page(); // Get the new tab or window
-                    // await newPage.waitForNavigation({ waitUntil: 'load' })
                     await newPage.waitForNetworkIdle()
                     console.info('New window/tab opened:', newPage.url());
                     resolve(newPage);
                 }
-            })),
-            // Navigate to the URL, which might trigger a new tab
-            page.goto('https://10.18.82.100', { waitUntil: 'load' }) // Wait for the page to load completely
+            })
+        });
 
+        await page.goto('https://10.18.82.100', { waitUntil: 'domcontentloaded' })
+
+        const newTab = await Promise.race([
+            newTabPromise,
+            new Promise(resolve => setTimeout(() => resolve(page), 5000))
         ]);
 
-        // Once the new tab is opened, interact with it
-        await newTab.waitForSelector('body');  // Ensure the new tab has loaded
+        // Once the new tab is opened (or original page is reused), interact with it
+        await newTab.waitForSelector('#username', { timeout: 20000 });
+        await newTab.bringToFront();
 
         console.log('Loading Initial Login page')
 
         await newTab.click('#username')
-        await newTab.type('#username', process.env.USER_NAME)
+        await newTab.type('#username', process.env.USER_NAME || '')
         await newTab.click('#password')
-        await newTab.type('#password', process.env.PASS_KEY)
+        await newTab.type('#password', process.env.PASS_KEY || '')
 
         await newTab.click('input[type="submit"]')
 

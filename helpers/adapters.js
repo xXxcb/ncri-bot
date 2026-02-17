@@ -128,19 +128,21 @@ adapters.mainPage = async (wrkPage, browser) => {
 }
 
 adapters.hardLogout = async (page) => {
-    return new Promise(async () => {
+    return new Promise(async (resolve) => {
         console.log('Logging Out...')
         await page.goto('https://10.18.82.100/logout.phtml')
         console.log('Logged Out...')
+        resolve()
         process.exit(0)
     })
 }
 
 adapters.softLogout = async (page) => {
-    return new Promise(async () => {
+    return new Promise(async (resolve) => {
         console.log('Logging Out...')
         await page.goto('https://10.18.82.100/logout.phtml')
         console.log('Logged Out...')
+        resolve()
     })
 }
 

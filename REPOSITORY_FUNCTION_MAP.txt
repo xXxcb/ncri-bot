@@ -1,0 +1,118 @@
+NCRI Bot Repository Map
+=======================
+
+Project root: /Users/xander/WebstormProjects/ncri-bot
+
+Entry points and key files
+--------------------------
+1) serve.js
+- Role: Main application entry point for the crawler/export bot.
+- Evidence: package.json "main" is set to serve.js and run-crawl.bat runs `node serve.js`.
+- Loads environment config from: config/.env
+
+2) run-crawl.bat
+- Role: Windows launcher script.
+- Purpose: Changes directory to the bot folder and starts `serve.js`.
+
+3) config/.env
+- Role: Runtime configuration and secrets.
+- Purpose: Stores portal credentials and related env vars.
+- Used keys in code:
+  - USER_NAME (portal username)
+  - PASS_KEY (portal password)
+
+4) helpers/adapters.js
+- Role: Browser/page flow helper module.
+- Purpose: Login and logout helpers used by serve.js.
+
+5) helpers/log.js
+- Role: Logging setup helper.
+- Purpose: Redirects console log/error/info output to both console and Desktop log file.
+
+6) package.json
+- Role: Node project config.
+- Purpose: Declares dependencies, scripts, and default main file.
+
+7) README.md
+- Role: Minimal project readme (currently only title).
+
+8) Process Document_NCRI_BOT_DRS.pdf
+- Role: Process documentation artifact (reference document, not executable code).
+
+Function map
+------------
+
+File: serve.js
+
+- delay(ms) [line 17]
+  Purpose: Utility promise-based sleep/delay function.
+
+- startApp() [line 19]
+  Purpose: Main orchestration flow.
+  Responsibilities:
+  - Initializes logging via helpers/log.js.
+  - Launches Chrome through puppeteer-core.
+  - Calls adapters.loginPage(...) to authenticate.
+  - Navigates report pages/frames.
+  - Generates export popup and selects layout.
+  - Creates timestamped download folder on Desktop/DRS_DL.
+  - Configures Chrome download behavior.
+  - Waits for file download completion.
+  - Calls adapters.hardLogout(...) on success and exits.
+  - On errors in the launch promise: soft logout, short delay, restart.
+
+- waitForFile(downloadPath, timeout) [nested inside startApp, line 143]
+  Purpose: Polls download folder until Chrome .crdownload disappears and final file exists.
+
+- waitForNavigationWithRefresh(popup, options) [line 218]
+  Purpose: Waits for popup navigation with retry/refresh fallback behavior.
+
+- startApp(); [line 252]
+  Purpose: Executes the app immediately when serve.js is run.
+
+File: helpers/adapters.js
+
+- delay(ms) [line 2]
+  Purpose: Local sleep helper (used for lockout wait).
+
+- adapters.loginPage(page, browser) [line 4]
+  Purpose: Handles login workflow.
+  Responsibilities:
+  - Opens base portal URL.
+  - Handles possible new tab/window from portal.
+  - Submits username/password from env vars.
+  - Finds/uses the "enter" URL, cleans up extra tabs.
+  - Detects temporary lockout and waits before retrying.
+  - Performs second login step and returns working page.
+
+- adapters.mainPage(wrkPage, browser) [line 92]
+  Purpose: Navigates toward report popup from the main page.
+  Note: This function appears unused in current serve.js flow.
+
+- adapters.hardLogout(page) [line 130]
+  Purpose: Logs out and exits process.
+
+- adapters.softLogout(page) [line 139]
+  Purpose: Logs out without process exit.
+
+File: helpers/log.js
+
+- module.exports = () => { ... } [line 5]
+  Purpose: Initializes log file stream and monkey-patches console methods.
+  Returns: cleanup function to close log stream.
+
+- Returned cleanup function [line 35]
+  Purpose: Ends log stream cleanly.
+
+Config and credentials summary
+------------------------------
+- Credentials are not hardcoded in JS files.
+- Portal username/password are sourced from config/.env via dotenv in serve.js.
+- Variable names expected by the app:
+  - USER_NAME
+  - PASS_KEY
+
+Notes
+-----
+- node_modules contains third-party packages and is not part of app source logic.
+- node-cron is listed in dependencies but not currently used in the shown source files.

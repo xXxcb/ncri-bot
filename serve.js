@@ -7,6 +7,8 @@ const os = require('os');
 const fs = require('fs');
 let globalPage
 let globalBrowser
+let closeLogs
+let shuttingDown = false
 
 /**
  * Helper function to create a delay based on inputted milliseconds.
@@ -16,12 +18,40 @@ let globalBrowser
  */
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const shutdown = async (reason, exitCode = 0) => {
+    if (shuttingDown) {
+        return
+    }
+    shuttingDown = true
+    console.info(`Shutting down: ${reason}`)
+    try {
+        if (globalPage) {
+            await adapters.softLogout(globalPage)
+        }
+    } catch (error) {
+        console.error('Error during logout:', error)
+    }
+    try {
+        if (globalBrowser) {
+            await globalBrowser.close()
+        }
+    } catch (error) {
+        console.error('Error closing browser:', error)
+    }
+    if (closeLogs) {
+        closeLogs()
+    }
+    process.exit(exitCode)
+}
+
 const startApp = () => {
     try {
-        const closeLogs = logger()
+        closeLogs = logger()
 
         console.info('>> Launching NCRI Bot <<')
-        puppeteer.launch({ headless: false, protocolTimeout: 1500000, executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
+        const executablePath = process.env.CHROME_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        const headless = process.env.HEADLESS !== 'false'
+        puppeteer.launch({ headless, protocolTimeout: 1500000, executablePath, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors', '--new-window=false'] }).then(async browser => {
             globalBrowser = browser
             const page = await browser.newPage();
             let wrkPage = await adapters.loginPage(page, browser);
@@ -181,7 +211,9 @@ const startApp = () => {
                 console.log('File Downloaded successfully.')
                 await adapters.hardLogout(wrkPage)
                 await browser.close()
-                closeLogs()
+                if (closeLogs) {
+                    closeLogs()
+                }
                 process.exit(0)
             }
         }).catch(async (err) => {
@@ -218,6 +250,7 @@ const startApp = () => {
 const waitForNavigationWithRefresh = async (popup, options = {}) => {
     const maxRetries = 3;
     let retryCount = 0;
+    const timeout = options.timeout || 90000;
 
     while (retryCount < maxRetries) {
         try {
@@ -225,7 +258,7 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
             console.log(`Attempt ${retryCount + 1}: Waiting for navigation...`);
             await popup.waitForNavigation({
                 waitUntil: options.waitUntil || 'domcontentloaded',
-                timeout: options.timeout || 10000, // Default timeout: 10 seconds
+                timeout,
             });
             console.log('Navigation successful.');
             return; // Exit the loop if navigation succeeds
@@ -234,11 +267,11 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
             retryCount++;
             if (retryCount < maxRetries) {
                 console.log(`Refreshing the page (attempt ${retryCount + 1})...`);
-                await popup.reload(); // Refresh the page
-                return;
+                await popup.reload({ waitUntil: options.waitUntil || 'domcontentloaded', timeout }); // Refresh the page
+                continue;
             } else {
-                console.error('Maximum retries reached. Navigation failed.');
-                throw error; // Rethrow the error after maximum retries
+                console.error('Maximum retries reached. Continuing without navigation confirmation.');
+                return;
             }
         }
     }
@@ -250,3 +283,14 @@ const waitForNavigationWithRefresh = async (popup, options = {}) => {
  * @method startApp
  */
 startApp();
+
+process.on('SIGINT', () => shutdown('SIGINT', 0))
+process.on('SIGTERM', () => shutdown('SIGTERM', 0))
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error)
+    shutdown('uncaughtException', 1)
+})
+process.on('unhandledRejection', (error) => {
+    console.error('Unhandled rejection:', error)
+    shutdown('unhandledRejection', 1)
+})
